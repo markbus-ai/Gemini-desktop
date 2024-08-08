@@ -18,6 +18,9 @@ import threading
 import time
 import pyperclip
 
+global root, sidebar_frame, main_frame, chat_area, code_area, input_field, typing_label
+global notebook, copy_button, ax, canvas
+root = None
 # Configuración inicial
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -140,13 +143,15 @@ def configure_generative_ai(api_key):
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
+
     except GoogleAPIError as e:
         messagebox.showerror("Error de API", f"No se pudo configurar la API de Google Generative AI: {e}")
     except Exception as e:
         messagebox.showerror("Error", f"Error inesperado: {str(e)}")
+    
 
 def prompt_for_api_key():
-    dialog = Toplevel()
+    dialog = ctk.CTk()
     dialog.title("Ingresar Clave de API de Google")
     dialog.geometry("400x200")
     dialog.resizable(False, False)
@@ -163,6 +168,7 @@ def prompt_for_api_key():
             save_api_key(api_key)
             configure_generative_ai(api_key)
             dialog.destroy()
+            main()
         else:
             messagebox.showerror("Error", "La clave de la API no puede estar vacía.")
 
@@ -226,14 +232,14 @@ def load_custom_prompt():
         return ""
 
 def prompt_for_custom_prompt():
-    dialog = Toplevel()
-    dialog.title("Prompt Personalizado")
-    dialog.configure(background="#2b2b2b")
-    dialog.geometry("500x300")
-    dialog.resizable(False, False)
+    dialog_promt = Toplevel()
+    dialog_promt.title("Prompt Personalizado")
+    dialog_promt.configure(background="#2b2b2b")
+    dialog_promt.geometry("500x300")
+    dialog_promt.resizable(False, False)
 
     label = ctk.CTkLabel(
-        dialog,
+        dialog_promt,
         text="Ingresa el prompt personalizado:",
         text_color="#ffffff",
         fg_color="transparent",
@@ -242,7 +248,7 @@ def prompt_for_custom_prompt():
     label.pack(pady=10, padx=10)
 
     custom_prompt_entry = ctk.CTkTextbox(
-        dialog,
+        dialog_promt,
         height=150,
         fg_color="#3a3a3a",
         text_color="#ffffff",
@@ -255,10 +261,10 @@ def prompt_for_custom_prompt():
     def save_and_close():
         prompt = custom_prompt_entry.get("0.0", "end-1c").strip()
         save_custom_prompt(prompt)
-        dialog.destroy()
+        dialog_promt.destroy()
 
     save_button = ctk.CTkButton(
-        dialog,
+        dialog_promt,
         text="Guardar Prompt",
         command=save_and_close,
         fg_color="#064F36",
@@ -266,7 +272,7 @@ def prompt_for_custom_prompt():
     )
     save_button.pack(pady=10)
 
-    dialog.mainloop()
+    dialog_promt.mainloop()
 
 def correccion(code):
     prompt_template = f"""
@@ -287,6 +293,8 @@ def correccion(code):
     ```
     deberias borrar ```php y ``` ademas de las llaves de apertura y cierre
     el codigo a modificar es el siguiente: 
+    7.Solo usa caracteres que esten en UTF-8
+    8.No uses tildes, ni caracteres que puedan causar errores con la codificacion de UTF-8
     """
     full_prompt = prompt_template + code
     return model.generate_content(full_prompt).text
@@ -402,7 +410,9 @@ Eres un asistente AI especializado en programación y análisis de datos. Respon
    - Formato: "GRAPH_DATA: x1,y1 x2,y2 x3,y3 ..." (sin comillas)
    - Proporciona entre 5 y 20 pares de puntos.
    - Asegúrate de que los datos sean coherentes y representen una tendencia lógica.
+   -cada vez que te pasen palabras para generar el grafico remplaza las palabras por numeros SIEMPRE
    - Ejemplo: GRAPH_DATA: 0,10 1,15 2,25 3,30 4,50
+   - Ejemplo si te piden que generes un graficos por meses, remplaza los meses por numeros segun su orden en el calendario
 
 5. Respuestas generales:
    - Sé directo y evita introducciones innecesarias.
@@ -466,130 +476,133 @@ def load_history_file():
     file_path = filedialog.askopenfilename(filetypes=[("Archivos de texto", "*.txt")])
     if file_path:
         load_chat_history(file_path)
+def main():
+    global root, sidebar_frame, main_frame, chat_area, code_area, input_field, typing_label
+    global notebook, copy_button, ax, canvas
+    # Crear la ventana principal
+    root = ctk.CTk()
+    root.title("ChatBot AI")
+    root.geometry("1000x600")
 
-# Crear la ventana principal
-root = ctk.CTk()
-root.title("ChatBot AI")
-root.geometry("1000x600")
+    # Configurar grid layout (3x1)
+    root.grid_columnconfigure(1, weight=1)
+    root.grid_rowconfigure(0, weight=1)
 
-# Configurar grid layout (3x1)
-root.grid_columnconfigure(1, weight=1)
-root.grid_rowconfigure(0, weight=1)
+    # Crear frame de la barra lateral
+    sidebar_frame = ctk.CTkFrame(root, width=200, corner_radius=0)
+    sidebar_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
+    sidebar_frame.grid_rowconfigure(10, weight=1)
 
-# Crear frame de la barra lateral
-sidebar_frame = ctk.CTkFrame(root, width=200, corner_radius=0)
-sidebar_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
-sidebar_frame.grid_rowconfigure(10, weight=1)
+    # Elementos de la barra lateral
+    logo_label = ctk.CTkLabel(sidebar_frame, text="ChatBot AI", font=ctk.CTkFont(size=20, weight="bold"))
+    logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-# Elementos de la barra lateral
-logo_label = ctk.CTkLabel(sidebar_frame, text="ChatBot AI", font=ctk.CTkFont(size=20, weight="bold"))
-logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
+    # Sección de Gestión de Chat
+    chat_management_frame = ctk.CTkFrame(sidebar_frame)
+    chat_management_frame.grid(row=1, column=0, padx=20, pady=10)
 
-# Sección de Gestión de Chat
-chat_management_frame = ctk.CTkFrame(sidebar_frame)
-chat_management_frame.grid(row=1, column=0, padx=20, pady=10)
+    new_chat_button = ctk.CTkButton(chat_management_frame, text="Nuevo Chat", command=new_chat, fg_color='#064F36', hover_color='#0D845B')
+    new_chat_button.grid(row=0, column=0, padx=5, pady=5)
 
-new_chat_button = ctk.CTkButton(chat_management_frame, text="Nuevo Chat", command=new_chat, fg_color='#064F36', hover_color='#0D845B')
-new_chat_button.grid(row=0, column=0, padx=5, pady=5)
-
-load_history_button = ctk.CTkButton(chat_management_frame, text="Cargar Historial", command=load_history_file, fg_color='#064F36', hover_color='#0D845B')
-load_history_button.grid(row=1, column=0, padx=5, pady=5)
-
-
-# Botón de Prompt Personalizado
-custom_prompt_button = ctk.CTkButton(sidebar_frame, text="Prompt Personalizado", command=prompt_for_custom_prompt, fg_color='#064F36', hover_color='#0D845B')
-custom_prompt_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
-
-main_frame = ctk.CTkFrame(root)
-main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
-main_frame.grid_rowconfigure(0, weight=1)
-main_frame.grid_columnconfigure(0, weight=1)
-
-# Create a notebook (tabs)
-notebook = ctk.CTkTabview(main_frame)
-notebook.grid(row=0, column=0, sticky="nsew")
-
-# Create tabs
-chat_tab = notebook.add("Chat")
-code_tab = notebook.add("Código")
-graph_tab = notebook.add("Gráfico")
-
-# Configure chat tab
-chat_area = ctk.CTkTextbox(chat_tab, wrap="word", state="disabled", font=("Roboto", 12))
-chat_area.pack(expand=True, fill="both", padx=10, pady=(10, 5))
-
-# Configure code tab
-code_area = ctk.CTkTextbox(code_tab, wrap="none", state="disabled", font=("Fira Code", 12))
-code_area.pack(expand=True, fill="both", padx=10, pady=(10, 5))
-# Crear un frame para contener el área de código y el botón de copiar
-code_frame = ctk.CTkFrame(code_tab)
-code_frame.pack(expand=True, fill="both", padx=10, pady=(10, 5))
-
-# Mover el área de código al nuevo frame
-code_area.master = code_frame
-code_area.pack(side="left", expand=True, fill="both")
-
-# Crear el botón de copiar
-copy_button = ctk.CTkButton(code_frame, text="Copiar Código", command=copy_code_to_clipboard, 
-                            fg_color='#064F36', hover_color='#0D845B', width=100)
-copy_button.pack(side="top", padx=(5, 0), pady=10)
-
-exec_button = ctk.CTkButton(code_frame, text="Ejecutar Código", command=execute_code, 
-                            fg_color='#064F36', hover_color='#0D845B', width=100)
-exec_button.pack(side="top", padx=(5, 0), pady=10)
+    load_history_button = ctk.CTkButton(chat_management_frame, text="Cargar Historial", command=load_history_file, fg_color='#064F36', hover_color='#0D845B')
+    load_history_button.grid(row=1, column=0, padx=5, pady=5)
 
 
-# Add syntax highlighting tags
-for color in ['#f8f8f2', '#f92672', '#66d9ef', '#a6e22e', '#fd971f', '#ae81ff']:
-    code_area.tag_config(color, foreground=color)
+    # Botón de Prompt Personalizado
+    custom_prompt_button = ctk.CTkButton(sidebar_frame, text="Prompt Personalizado", command=prompt_for_custom_prompt, fg_color='#064F36', hover_color='#0D845B')
+    custom_prompt_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
 
-# Configure graph tab
-graph_frame = ctk.CTkFrame(graph_tab)
-graph_frame.pack(expand=True, fill="both", padx=10, pady=(10, 5))
+    main_frame = ctk.CTkFrame(root)
+    main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+    main_frame.grid_rowconfigure(0, weight=1)
+    main_frame.grid_columnconfigure(0, weight=1)
 
-figure, ax = plt.subplots(figsize=(5, 4), dpi=100)
-canvas = FigureCanvasTkAgg(figure, master=graph_frame)
-canvas.draw()
-canvas.get_tk_widget().pack(side=ctk.TOP, fill=ctk.BOTH, expand=1)
+    # Create a notebook (tabs)
+    notebook = ctk.CTkTabview(main_frame)
+    notebook.grid(row=0, column=0, sticky="nsew")
 
-# Configure color labels in the chat area
-chat_area.tag_config("user", background="#36a8b4", foreground="black")
-chat_area.tag_config("ai", background="#cab93f", foreground="black")
+    # Create tabs
+    chat_tab = notebook.add("Chat")
+    code_tab = notebook.add("Código")
+    graph_tab = notebook.add("Gráfico")
 
-# Frame for input and send button
-input_frame = ctk.CTkFrame(main_frame)
-input_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
-input_frame.grid_columnconfigure(0, weight=1)
+    # Configure chat tab
+    chat_area = ctk.CTkTextbox(chat_tab, wrap="word", state="disabled", font=("Roboto", 12))
+    chat_area.pack(expand=True, fill="both", padx=10, pady=(10, 5))
 
-input_field = ctk.CTkEntry(input_frame, placeholder_text="Escribe tu mensaje aquí...", height=40, font=("Roboto", 14))
-input_field.grid(row=0, column=0, sticky="ew", padx=(0, 5))
-input_field.bind("<Return>", lambda event: send_message())
+    # Configure code tab
+    code_area = ctk.CTkTextbox(code_tab, wrap="none", state="disabled", font=("Fira Code", 12))
+    code_area.pack(expand=True, fill="both", padx=10, pady=(10, 5))
+    # Crear un frame para contener el área de código y el botón de copiar
+    code_frame = ctk.CTkFrame(code_tab)
+    code_frame.pack(expand=True, fill="both", padx=10, pady=(10, 5))
 
-send_button = ctk.CTkButton(input_frame, text="Enviar", command=send_message, fg_color='#064F36', hover_color='#0D845B', height=40, font=("Roboto", 14))
-send_button.grid(row=0, column=1, padx=(0, 5))
+    # Mover el área de código al nuevo frame
+    code_area.master = code_frame
+    code_area.pack(side="left", expand=True, fill="both")
 
-file_button = ctk.CTkButton(input_frame, text="Cargar Archivo", command=pdf_to_text, fg_color='#064F36', hover_color='#0D845B', height=40, font=("Roboto", 14))
-file_button.grid(row=0, column=2)
+    # Crear el botón de copiar
+    copy_button = ctk.CTkButton(code_frame, text="Copiar Código", command=copy_code_to_clipboard, 
+                                fg_color='#064F36', hover_color='#0D845B', width=100)
+    copy_button.pack(side="top", padx=(5, 0), pady=10)
 
-# Botón de alternar modo oscuro/claro
-dark_mode_button = ctk.CTkButton(sidebar_frame, text="Alternar Modo Oscuro/Claro", command=toggle_dark_mode, fg_color='#064F36', hover_color='#0D845B')
-dark_mode_button.grid(row=6, column=0, padx=20, pady=10, sticky="ew")
+    exec_button = ctk.CTkButton(code_frame, text="Ejecutar Código", command=execute_code, 
+                                fg_color='#064F36', hover_color='#0D845B', width=100)
+    exec_button.pack(side="top", padx=(5, 0), pady=10)
 
-# Etiqueta para mostrar la animación de escritura
-typing_label = ctk.CTkLabel(input_frame, text="")
-typing_label.grid(row=1, column=0, columnspan=3, pady=(5, 0))
 
-# Actualizar el botón de enviar para incluir la animación
-send_button.configure(command=send_message_with_animation)
-# Cargar historial inicial
-load_chat_history(current_history_file)
+    # Add syntax highlighting tags
+    for color in ['#f8f8f2', '#f92672', '#66d9ef', '#a6e22e', '#fd971f', '#ae81ff']:
+        code_area.tag_config(color, foreground=color)
+
+    # Configure graph tab
+    graph_frame = ctk.CTkFrame(graph_tab)
+    graph_frame.pack(expand=True, fill="both", padx=10, pady=(10, 5))
+
+    figure, ax = plt.subplots(figsize=(5, 4), dpi=100)
+    canvas = FigureCanvasTkAgg(figure, master=graph_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(side=ctk.TOP, fill=ctk.BOTH, expand=1)
+
+    # Configure color labels in the chat area
+    chat_area.tag_config("user", background="#36a8b4", foreground="black")
+    chat_area.tag_config("ai", background="#cab93f", foreground="black")
+
+    # Frame for input and send button
+    input_frame = ctk.CTkFrame(main_frame)
+    input_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
+    input_frame.grid_columnconfigure(0, weight=1)
+
+    input_field = ctk.CTkEntry(input_frame, placeholder_text="Escribe tu mensaje aquí...", height=40, font=("Roboto", 14))
+    input_field.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+    input_field.bind("<Return>", lambda event: send_message())
+
+    send_button = ctk.CTkButton(input_frame, text="Enviar", command=send_message, fg_color='#064F36', hover_color='#0D845B', height=40, font=("Roboto", 14))
+    send_button.grid(row=0, column=1, padx=(0, 5))
+
+    file_button = ctk.CTkButton(input_frame, text="Cargar Archivo", command=pdf_to_text, fg_color='#064F36', hover_color='#0D845B', height=40, font=("Roboto", 14))
+    file_button.grid(row=0, column=2)
+
+    # Botón de alternar modo oscuro/claro
+    dark_mode_button = ctk.CTkButton(sidebar_frame, text="Alternar Modo Oscuro/Claro", command=toggle_dark_mode, fg_color='#064F36', hover_color='#0D845B')
+    dark_mode_button.grid(row=6, column=0, padx=20, pady=10, sticky="ew")
+
+    # Etiqueta para mostrar la animación de escritura
+    typing_label = ctk.CTkLabel(input_frame, text="")
+    typing_label.grid(row=1, column=0, columnspan=3, pady=(5, 0))
+
+    # Actualizar el botón de enviar para incluir la animación
+    send_button.configure(command=send_message_with_animation)
+
+    root.mainloop()
 
 # Configuración inicial
 api_key = load_api_key()
 if not api_key:
     prompt_for_api_key()
+    # Iniciar la aplicación
+
 else:
     configure_generative_ai(api_key)
+    main()
 
-# Iniciar la aplicación
-root.mainloop()
