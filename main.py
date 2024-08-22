@@ -299,8 +299,14 @@ def correccion(code):
     full_prompt = prompt_template + code
     return model.generate_content(full_prompt).text
 def execute_code():
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    api_key = load_api_key()
+    if api_key:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+    else:
+        print("Error: No se ha configurado la clave de API.")
+        return
+
     def name(response):
         prompt = f"""
         quiero que generes un titulo conciso y claro y resumido y corto 
