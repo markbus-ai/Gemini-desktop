@@ -596,13 +596,15 @@ def main():
 
     root.mainloop()
 
-# Configuración inicial
-api_key = load_api_key()
-if not api_key:
-    prompt_for_api_key()
-    # Iniciar la aplicación
+def run_app():
+    # Configuración inicial
+    api_key = load_api_key()
+    if not api_key:
+        prompt_for_api_key()
+    else:
+        configure_generative_ai(api_key)
+        main()
 
-else:
-    configure_generative_ai(api_key)
-    main()
+if __name__ == "__main__":
+    run_app()
 
