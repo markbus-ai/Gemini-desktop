@@ -18,7 +18,7 @@ import threading
 import time
 import pyperclip
 
-global root, sidebar_frame, main_frame, chat_area, code_area, input_field, typing_label
+global root, sidebar_frame, main_frame, chat_area, code_area, input_field, typing_label, api_key
 global notebook, copy_button, ax, canvas
 root = None
 # Configuración inicial
@@ -34,18 +34,18 @@ tags = set()
 current_tags = set()
 
 
-
 def toggle_dark_mode():
     current_mode = ctk.get_appearance_mode().lower()
     new_mode = "light" if current_mode == "dark" else "dark"
     ctk.set_appearance_mode(new_mode)
     update_ui_colors()
 
+
 def update_ui_colors():
     is_dark = ctk.get_appearance_mode().lower() == "dark"
     bg_color = "#2b2b2b" if is_dark else "#f0f0f0"
     fg_color = "#ffffff" if is_dark else "#000000"
-    
+
     root.configure(fg_color=bg_color)
     sidebar_frame.configure(fg_color=bg_color)
     main_frame.configure(fg_color=bg_color)
@@ -62,6 +62,7 @@ def show_typing_animation():
             time.sleep(0.5)
     typing_label.configure(text="")
 
+
 def send_message_with_animation():
     threading.Thread(target=show_typing_animation, daemon=True).start()
     send_message()
@@ -75,7 +76,7 @@ def update_code_display(code):
     code_area.configure(state="disabled")
     notebook.set("Código")  # Cambiar a la pestaña de código
     copy_button.lift()  # Asegurarse de que el botón esté visible
-    
+
     # Detect the language (you can expand this list)
     language = "python"  # default
     if code.strip().startswith("<?php"):
@@ -84,29 +85,29 @@ def update_code_display(code):
         language = "html"
     elif "function" in code or "var" in code or "let" in code or "const" in code:
         language = "javascript"
-    
+
     # Highlight the code
     lexer = get_lexer_by_name(language, stripall=True)
     formatter = BBCodeFormatter(style="monokai")
     highlighted_code = highlight(code, lexer, formatter)
-    
+
     # Insert the highlighted code
-    for line in highlighted_code.split('\n'):
-        if line.startswith('[color='):
-            color = line[7:line.index(']')]
-            text = line[line.index(']')+1:line.rindex('[')]
+    for line in highlighted_code.split("\n"):
+        if line.startswith("[color="):
+            color = line[7 : line.index("]")]
+            text = line[line.index("]") + 1 : line.rindex("[")]
             code_area.insert(ctk.END, text, color)
         else:
             code_area.insert(ctk.END, line)
-        code_area.insert(ctk.END, '\n')
-    
+        code_area.insert(ctk.END, "\n")
+
     code_area.configure(state="disabled")
     notebook.set("Código")  # Switch to the code tab
 
 
 def update_chat_display():
-    chat_area.configure(state='normal')
-    chat_area.delete('1.0', ctk.END)
+    chat_area.configure(state="normal")
+    chat_area.delete("1.0", ctk.END)
     for message in chat:
         if message.startswith("Tú: "):
             chat_area.insert(ctk.END, message, "user")
@@ -114,41 +115,47 @@ def update_chat_display():
             chat_area.insert(ctk.END, message, "ai")
         else:
             chat_area.insert(ctk.END, message)
-    chat_area.configure(state='disabled')
+    chat_area.configure(state="disabled")
     chat_area.see(ctk.END)
+
 
 def pdf_to_text():
     global text
     pdf_path = ctk.filedialog.askopenfilename(filetypes=[("Archivos pdf", "*.pdf")])
     if pdf_path:
-        with open(pdf_path, 'rb') as file:
+        with open(pdf_path, "rb") as file:
             reader = PyPDF2.PdfReader(file)
-            text = ''
+            text = ""
             for page in reader.pages:
                 text += page.extract_text()
         return text
 
+
 def load_api_key():
-    if os.path.exists('api.txt'):
-        with open('api.txt', 'r') as file:
+    if os.path.exists("api.txt"):
+        with open("api.txt", "r") as file:
             return file.read().strip()
-    return ''
+    return ""
+
 
 def save_api_key(api_key):
-    with open('api.txt', 'w') as file:
+    with open("api.txt", "w") as file:
         file.write(api_key)
+
 
 def configure_generative_ai(api_key):
     global model
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
     except GoogleAPIError as e:
-        messagebox.showerror("Error de API", f"No se pudo configurar la API de Google Generative AI: {e}")
+        messagebox.showerror(
+            "Error de API", f"No se pudo configurar la API de Google Generative AI: {e}"
+        )
     except Exception as e:
         messagebox.showerror("Error", f"Error inesperado: {str(e)}")
-    
+
 
 def prompt_for_api_key():
     dialog = ctk.CTk()
@@ -172,23 +179,36 @@ def prompt_for_api_key():
         else:
             messagebox.showerror("Error", "La clave de la API no puede estar vacía.")
 
-    save_button = ctk.CTkButton(dialog, text="Guardar y continuar", command=save_and_configure, bg_color='#064F36')
+    save_button = ctk.CTkButton(
+        dialog,
+        text="Guardar y continuar",
+        command=save_and_configure,
+        bg_color="#064F36",
+    )
     save_button.pack(pady=10)
 
-    get_key_button = ctk.CTkButton(dialog, text="Obtener clave", command=lambda: webbrowser.open('https://ai.google.dev/gemini-api/docs/api-key?hl=es-419'))
+    get_key_button = ctk.CTkButton(
+        dialog,
+        text="Obtener clave",
+        command=lambda: webbrowser.open(
+            "https://ai.google.dev/gemini-api/docs/api-key?hl=es-419"
+        ),
+    )
     get_key_button.pack(pady=10)
 
     dialog.mainloop()
+
 
 def apply_chat_styles():
     chat_area.tag_config("user", background="#36a8b4", foreground="black")
     chat_area.tag_config("ai", background="#cab93f", foreground="black")
 
+
 def load_chat_history(file_path):
     global current_history_file, chat
     current_history_file = file_path
-    chat_area.configure(state='normal')
-    chat_area.delete('1.0', ctk.END)
+    chat_area.configure(state="normal")
+    chat_area.delete("1.0", ctk.END)
     try:
         with open(file_path, "r") as file:
             chat = file.readlines()
@@ -205,24 +225,27 @@ def load_chat_history(file_path):
         messagebox.showerror("Error", f"Error al cargar el archivo: {str(e)}")
 
     chat_area.see(ctk.END)
-    chat_area.configure(state='disabled')
+    chat_area.configure(state="disabled")
     apply_chat_styles()
+
 
 def new_chat():
     global current_history_file, chat
     current_history_file = f"history_{datetime.datetime.now().strftime('%d-%m-%Y')}_{random.randint(1, 100)}.txt"
     chat = []
-    chat_area.configure(state='normal')
-    chat_area.delete('1.0', ctk.END)
-    chat_area.configure(state='disabled')
+    chat_area.configure(state="normal")
+    chat_area.delete("1.0", ctk.END)
+    chat_area.configure(state="disabled")
+
 
 def save_custom_prompt(prompt):
     if prompt:
-        with open('prompt.txt', 'w') as file:
+        with open("prompt.txt", "w") as file:
             file.write(prompt)
         messagebox.showinfo("Éxito", "Prompt personalizado guardado correctamente.")
     else:
         messagebox.showerror("Error", "El prompt no puede estar vacío.")
+
 
 def load_custom_prompt():
     try:
@@ -230,6 +253,7 @@ def load_custom_prompt():
             return file.read().strip()
     except FileNotFoundError:
         return ""
+
 
 def prompt_for_custom_prompt():
     dialog_promt = Toplevel()
@@ -243,7 +267,7 @@ def prompt_for_custom_prompt():
         text="Ingresa el prompt personalizado:",
         text_color="#ffffff",
         fg_color="transparent",
-        bg_color="transparent"
+        bg_color="transparent",
     )
     label.pack(pady=10, padx=10)
 
@@ -253,7 +277,7 @@ def prompt_for_custom_prompt():
         fg_color="#3a3a3a",
         text_color="#ffffff",
         border_color="#555555",
-        border_width=1
+        border_width=1,
     )
     custom_prompt_entry.pack(pady=10, padx=10, fill="both", expand=True)
     custom_prompt_entry.insert("0.0", load_custom_prompt())
@@ -268,11 +292,12 @@ def prompt_for_custom_prompt():
         text="Guardar Prompt",
         command=save_and_close,
         fg_color="#064F36",
-        hover_color="#0D845B"
+        hover_color="#0D845B",
     )
     save_button.pack(pady=10)
 
     dialog_promt.mainloop()
+
 
 def correccion(code):
     prompt_template = f"""
@@ -298,14 +323,11 @@ def correccion(code):
     """
     full_prompt = prompt_template + code
     return model.generate_content(full_prompt).text
+
+
 def execute_code():
-    api_key = load_api_key()
-    if api_key:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    else:
-        print("Error: No se ha configurado la clave de API.")
-        return
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
     def name(response):
         prompt = f"""
@@ -323,20 +345,41 @@ def execute_code():
         full_prompt = prompt + response
         return model.generate_content(full_prompt).text
 
-
     code = code_area.get("1.0", ctk.END).strip()
     if code:
         response = correccion(code)
-        print("El código corregido es: ", response)
-        
+
         try:
             nom = name(response)
             nombre = nom.split("TITULO:")[1].split("TITULO_END:")[0].strip()
-            nombre.replace(" ", "_")
-            nombre.replace("TITULO:", "")
-            nombre.replace("TITULO_END:", "")
-            
-            with open(f"{nombre}", "w") as file:
+            nombre = (
+                nombre.replace(" ", "_")
+                .replace("TITULO:", "")
+                .replace("TITULO_END:", "")
+            )
+
+            # Agregar extensión según el lenguaje detectado
+            if "python" in code.lower() or ".py" in nombre.lower():
+                nombre += ".py"
+            elif "javascript" in code.lower() or ".js" in nombre.lower():
+                nombre += ".js"
+            elif "php" in code.lower() or ".php" in nombre.lower():
+                nombre += ".php"
+            elif "java" in code.lower() or ".java" in nombre.lower():
+                nombre += ".java"
+            elif "c" in code.lower() and not "cpp" in code.lower():
+                nombre += ".c"
+            elif "cpp" in code.lower() or "c++" in code.lower():
+                nombre += ".cpp"
+            elif "cs" in code.lower() or ".cs" in nombre.lower():
+                nombre += ".cs"
+            else:
+                print(
+                    "No se detectó un lenguaje compatible o el nombre no contiene una extensión válida."
+                )
+                return
+
+            with open(f"{nombre}", "a") as file:
                 file.write(response)
             print(f"Archivo '{nombre}' creado con éxito.")
         except IndexError:
@@ -345,24 +388,27 @@ def execute_code():
             print(f"Error al crear el archivo: {e}")
     else:
         print("No se ha proporcionado ningún código.")
-    if ".py" in nombre:
+
+    # Ejecución según la extensión
+    if nombre.endswith(".py"):
         os.system("python3 " + nombre)
-    elif ".js" in nombre:
+    elif nombre.endswith(".js"):
         os.system("node " + nombre)
-    elif ".php" in nombre:
+    elif nombre.endswith(".php"):
         os.system("php " + nombre)
-    elif ".java" in nombre:
-        os.system("java " + nombre)
-    elif ".c" in nombre:
-        os.system("gcc " + nombre + ".c -o " + nombre)
-        os.system("./" + nombre)
-    elif ".cpp" in nombre:
-        os.system("g++ " + nombre + ".cpp -o " + nombre)
-        os.system("./" + nombre)
-    elif ".cs" in nombre:
-        os.system("dotnet " + nombre + ".cs")
+    elif nombre.endswith(".java"):
+        os.system("javac " + nombre + " && java " + nombre.split(".")[0])
+    elif nombre.endswith(".c"):
+        os.system("gcc " + nombre + " -o " + nombre.split(".")[0])
+        os.system("./" + nombre.split(".")[0])
+    elif nombre.endswith(".cpp"):
+        os.system("g++ " + nombre + " -o " + nombre.split(".")[0])
+        os.system("./" + nombre.split(".")[0])
+    elif nombre.endswith(".cs"):
+        os.system("dotnet run " + nombre)
     else:
         print("El lenguaje no es compatible con el sistema operativo.")
+
 
 def copy_code_to_clipboard():
     codigo = code_area.get("1.0", ctk.END).strip()
@@ -373,6 +419,7 @@ def copy_code_to_clipboard():
     else:
         messagebox.showwarning("Vacío", "No hay código para copiar.")
 
+
 def update_code_display(code):
     code_area.configure(state="normal")
     code_area.delete("1.0", ctk.END)
@@ -380,11 +427,84 @@ def update_code_display(code):
     code_area.configure(state="disabled")
     notebook.set("Código")  # Cambiar a la pestaña de código
 
+
 def update_graph_display(x, y):
     ax.clear()
     ax.plot(x, y)
     canvas.draw()
     notebook.set("Gráfico")  # Cambiar a la pestaña de gráfico
+
+
+def open_help_window():
+    help_window = ctk.CTkToplevel(root)
+    help_window.title("Ayuda")
+    help_window.geometry("500x400")
+
+    help_text = """
+    Comandos Disponibles:
+
+    /clear   - Limpiar el área de código.
+    /code    - Mostrar el código actual.
+    /graph   - Mostrar un gráfico simple.
+    /save    - Guardar el historial del chat.
+    /load    - Cargar el historial del chat.
+    /copy    - Copiar el código al portapapeles.
+    /run     - Ejecutar el código.
+    /help    - Mostrar esta ventana de ayuda.
+    /about   - Mostrar información sobre la aplicación.
+    /exit    - Cerrar la aplicación.
+    /theme   - Cambiar el tema de la aplicación (claro/oscuro).
+    /font    - Cambiar el tamaño de la fuente.
+    /export  - Exportar el chat a un archivo de texto.
+    """
+
+    help_textbox = ctk.CTkTextbox(help_window, width=480, height=320)
+    help_textbox.insert("1.0", help_text)
+    help_textbox.configure(state="disabled")
+    help_textbox.pack(padx=10, pady=10)
+
+    close_button = ctk.CTkButton(
+        help_window, text="Cerrar", command=help_window.destroy
+    )
+    close_button.pack(pady=10)
+
+
+def open_about_window():
+    about_window = ctk.CTkToplevel(root)
+    about_window.title("Acerca de")
+    about_window.geometry("400x300")
+
+    about_text = """
+    Aplicación de Chat
+    Versión 1.1
+
+    Desarrollado por Markbusking
+
+    Esta aplicación es un asistente de programación
+    y análisis de datos con inteligencia artificial.
+
+    Para más información y actualizaciones, visita:
+    https://github.com/markbusking/chat-app
+    """
+
+    about_textbox = ctk.CTkTextbox(about_window, width=380, height=220)
+    about_textbox.insert("1.0", about_text)
+    about_textbox.configure(state="disabled")
+    about_textbox.pack(padx=10, pady=10)
+
+    def open_github():
+        webbrowser.open("https://github.com/markbusking/chat-app")
+
+    github_button = ctk.CTkButton(
+        about_window, text="Visitar GitHub", command=open_github
+    )
+    github_button.pack(pady=5)
+
+    close_button = ctk.CTkButton(
+        about_window, text="Cerrar", command=about_window.destroy
+    )
+    close_button.pack(pady=5)
+
 
 def send_message():
     message = input_field.get().strip()
@@ -394,6 +514,40 @@ def send_message():
 
     append_to_chat(f"Tú: {message}", "user")
     input_field.delete(0, ctk.END)
+
+    if message.startswith("/"):
+        command = message.lower().split()[0]
+        if command == "/clear":
+            clear_code_area()
+        elif command == "/code":
+            show_current_code()
+        elif command == "/graph":
+            show_graph()
+        elif command == "/save":
+            save_chat_history()
+        elif command == "/load":
+            load_chat_history()
+        elif command == "/copy":
+            copy_code_to_clipboard()
+        elif command == "/run":
+            execute_code()
+        elif command == "/help":
+            open_help_window()
+        elif command == "/about":
+            open_about_window()
+        elif command == "/exit":
+            exit_application()
+        elif command == "/theme":
+            toggle_theme()
+        elif command == "/font":
+            change_font_size()
+        elif command == "/export":
+            export_chat()
+        else:
+            messagebox.showwarning(
+                "Comando desconocido", f"El comando '{command}' no es reconocido."
+            )
+        return
 
     chat_context = " ".join(chat)
     custom_prompt = load_custom_prompt()
@@ -440,7 +594,7 @@ Responde al siguiente mensaje teniendo en cuenta todas estas instrucciones:
     try:
         response = model.generate_content(full_prompt).text
         append_to_chat(f"GenAI: {response}", "ai")
-        
+
         # Detectar y manejar código
         if "```" in response:
             code_start = response.find("```") + 3
@@ -448,7 +602,7 @@ Responde al siguiente mensaje teniendo en cuenta todas estas instrucciones:
             if code_end != -1:
                 code = response[code_start:code_end].strip()
                 update_code_display(code)
-        
+
         # Detectar y manejar datos para gráficos
         if "GRAPH_DATA:" in response:
             data_start = response.find("GRAPH_DATA:") + 11
@@ -456,18 +610,106 @@ Responde al siguiente mensaje teniendo en cuenta todas estas instrucciones:
             if data_end != -1:
                 data_str = response[data_start:data_end].strip()
                 try:
-                    x, y = zip(*[map(float, point.split(',')) for point in data_str.split()])
+                    x, y = zip(
+                        *[map(float, point.split(",")) for point in data_str.split()]
+                    )
                     update_graph_display(x, y)
                 except:
                     print("Error al procesar datos del gráfico")
-        
+
     except GoogleAPIError as e:
         append_to_chat(f"Error de API: {str(e)}", "ai")
     except Exception as e:
         append_to_chat(f"Error: {str(e)}", "ai")
 
+
+def clear_code_area():
+    code_area.configure(state="normal")
+    code_area.delete("1.0", ctk.END)
+    code_area.configure(state="disabled")
+    messagebox.showinfo("Limpieza", "El área de código ha sido limpiada.")
+
+
+def show_current_code():
+    code = code_area.get("1.0", ctk.END).strip()
+    if code:
+        update_code_display(code)
+    else:
+        messagebox.showinfo("Código", "No hay código para mostrar.")
+
+
+def show_graph():
+    x = [1, 2, 3, 4, 5]
+    y = [1, 4, 9, 16, 25]
+    update_graph_display(x, y)
+    messagebox.showinfo("Gráfico", "Se ha generado un gráfico de ejemplo.")
+
+
+def save_chat_history():
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".txt", filetypes=[("Archivo de texto", "*.txt")]
+    )
+    if file_path:
+        with open(file_path, "w", encoding="utf-8") as file:
+            chat_content = chat_area.get("1.0", ctk.END)
+            file.write(chat_content)
+        messagebox.showinfo(
+            "Guardado", f"El historial del chat se ha guardado en {file_path}"
+        )
+
+
+def load_chat_history():
+    file_path = filedialog.askopenfilename(filetypes=[("Archivo de texto", "*.txt")])
+    if file_path:
+        with open(file_path, "r", encoding="utf-8") as file:
+            chat_content = file.read()
+        chat_area.configure(state="normal")
+        chat_area.delete("1.0", ctk.END)
+        chat_area.insert(ctk.END, chat_content)
+        chat_area.configure(state="disabled")
+        messagebox.showinfo(
+            "Cargado", f"Se ha cargado el historial del chat desde {file_path}"
+        )
+
+
+def exit_application():
+    if messagebox.askyesno("Salir", "¿Estás seguro de que quieres salir?"):
+        root.destroy()
+
+
+def toggle_theme():
+    current_theme = ctk.get_appearance_mode()
+    new_theme = "Dark" if current_theme == "Light" else "Light"
+    ctk.set_appearance_mode(new_theme)
+    messagebox.showinfo("Tema", f"Tema cambiado a {new_theme}.")
+
+
+def change_font_size():
+    new_size = simpledialog.askinteger(
+        "Cambiar tamaño de fuente",
+        "Ingrese el nuevo tamaño de fuente:",
+        minvalue=8,
+        maxvalue=24,
+    )
+    if new_size:
+        chat_area.configure(font=("Roboto", new_size))
+        code_area.configure(font=("Fira Code", new_size))
+        messagebox.showinfo("Fuente", f"Tamaño de fuente cambiado a {new_size}.")
+
+
+def export_chat():
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".txt", filetypes=[("Archivo de texto", "*.txt")]
+    )
+    if file_path:
+        with open(file_path, "w", encoding="utf-8") as file:
+            chat_content = chat_area.get("1.0", ctk.END)
+            file.write(chat_content)
+        messagebox.showinfo("Exportado", f"Chat exportado correctamente a {file_path}")
+
+
 def append_to_chat(message, sender):
-    chat_area.configure(state='normal')
+    chat_area.configure(state="normal")
     if sender == "user":
         chat_area.insert(ctk.END, f"{message}\n", "user")
     else:
@@ -478,10 +720,13 @@ def append_to_chat(message, sender):
     with open(current_history_file, "a") as file:
         file.write(f"{message}\n")
 
+
 def load_history_file():
     file_path = filedialog.askopenfilename(filetypes=[("Archivos de texto", "*.txt")])
     if file_path:
         load_chat_history(file_path)
+
+
 def main():
     global root, sidebar_frame, main_frame, chat_area, code_area, input_field, typing_label
     global notebook, copy_button, ax, canvas
@@ -500,22 +745,41 @@ def main():
     sidebar_frame.grid_rowconfigure(10, weight=1)
 
     # Elementos de la barra lateral
-    logo_label = ctk.CTkLabel(sidebar_frame, text="ChatBot AI", font=ctk.CTkFont(size=20, weight="bold"))
+    logo_label = ctk.CTkLabel(
+        sidebar_frame, text="ChatBot AI", font=ctk.CTkFont(size=20, weight="bold")
+    )
     logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
     # Sección de Gestión de Chat
     chat_management_frame = ctk.CTkFrame(sidebar_frame)
     chat_management_frame.grid(row=1, column=0, padx=20, pady=10)
 
-    new_chat_button = ctk.CTkButton(chat_management_frame, text="Nuevo Chat", command=new_chat, fg_color='#064F36', hover_color='#0D845B')
+    new_chat_button = ctk.CTkButton(
+        chat_management_frame,
+        text="Nuevo Chat",
+        command=new_chat,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+    )
     new_chat_button.grid(row=0, column=0, padx=5, pady=5)
 
-    load_history_button = ctk.CTkButton(chat_management_frame, text="Cargar Historial", command=load_history_file, fg_color='#064F36', hover_color='#0D845B')
+    load_history_button = ctk.CTkButton(
+        chat_management_frame,
+        text="Cargar Historial",
+        command=load_history_file,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+    )
     load_history_button.grid(row=1, column=0, padx=5, pady=5)
 
-
     # Botón de Prompt Personalizado
-    custom_prompt_button = ctk.CTkButton(sidebar_frame, text="Prompt Personalizado", command=prompt_for_custom_prompt, fg_color='#064F36', hover_color='#0D845B')
+    custom_prompt_button = ctk.CTkButton(
+        sidebar_frame,
+        text="Prompt Personalizado",
+        command=prompt_for_custom_prompt,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+    )
     custom_prompt_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
 
     main_frame = ctk.CTkFrame(root)
@@ -533,11 +797,15 @@ def main():
     graph_tab = notebook.add("Gráfico")
 
     # Configure chat tab
-    chat_area = ctk.CTkTextbox(chat_tab, wrap="word", state="disabled", font=("Roboto", 12))
+    chat_area = ctk.CTkTextbox(
+        chat_tab, wrap="word", state="disabled", font=("Roboto", 12)
+    )
     chat_area.pack(expand=True, fill="both", padx=10, pady=(10, 5))
 
     # Configure code tab
-    code_area = ctk.CTkTextbox(code_tab, wrap="none", state="disabled", font=("Fira Code", 12))
+    code_area = ctk.CTkTextbox(
+        code_tab, wrap="none", state="disabled", font=("Fira Code", 12)
+    )
     code_area.pack(expand=True, fill="both", padx=10, pady=(10, 5))
     # Crear un frame para contener el área de código y el botón de copiar
     code_frame = ctk.CTkFrame(code_tab)
@@ -548,17 +816,28 @@ def main():
     code_area.pack(side="left", expand=True, fill="both")
 
     # Crear el botón de copiar
-    copy_button = ctk.CTkButton(code_frame, text="Copiar Código", command=copy_code_to_clipboard, 
-                                fg_color='#064F36', hover_color='#0D845B', width=100)
+    copy_button = ctk.CTkButton(
+        code_frame,
+        text="Copiar Código",
+        command=copy_code_to_clipboard,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+        width=100,
+    )
     copy_button.pack(side="top", padx=(5, 0), pady=10)
 
-    exec_button = ctk.CTkButton(code_frame, text="Ejecutar Código", command=execute_code, 
-                                fg_color='#064F36', hover_color='#0D845B', width=100)
+    exec_button = ctk.CTkButton(
+        code_frame,
+        text="Ejecutar Código",
+        command=execute_code,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+        width=100,
+    )
     exec_button.pack(side="top", padx=(5, 0), pady=10)
 
-
     # Add syntax highlighting tags
-    for color in ['#f8f8f2', '#f92672', '#66d9ef', '#a6e22e', '#fd971f', '#ae81ff']:
+    for color in ["#f8f8f2", "#f92672", "#66d9ef", "#a6e22e", "#fd971f", "#ae81ff"]:
         code_area.tag_config(color, foreground=color)
 
     # Configure graph tab
@@ -579,18 +858,45 @@ def main():
     input_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
     input_frame.grid_columnconfigure(0, weight=1)
 
-    input_field = ctk.CTkEntry(input_frame, placeholder_text="Escribe tu mensaje aquí...", height=40, font=("Roboto", 14))
+    input_field = ctk.CTkEntry(
+        input_frame,
+        placeholder_text="Escribe tu mensaje aquí...",
+        height=40,
+        font=("Roboto", 14),
+    )
     input_field.grid(row=0, column=0, sticky="ew", padx=(0, 5))
     input_field.bind("<Return>", lambda event: send_message())
 
-    send_button = ctk.CTkButton(input_frame, text="Enviar", command=send_message, fg_color='#064F36', hover_color='#0D845B', height=40, font=("Roboto", 14))
+    send_button = ctk.CTkButton(
+        input_frame,
+        text="Enviar",
+        command=send_message,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+        height=40,
+        font=("Roboto", 14),
+    )
     send_button.grid(row=0, column=1, padx=(0, 5))
 
-    file_button = ctk.CTkButton(input_frame, text="Cargar Archivo", command=pdf_to_text, fg_color='#064F36', hover_color='#0D845B', height=40, font=("Roboto", 14))
+    file_button = ctk.CTkButton(
+        input_frame,
+        text="Cargar Archivo",
+        command=pdf_to_text,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+        height=40,
+        font=("Roboto", 14),
+    )
     file_button.grid(row=0, column=2)
 
     # Botón de alternar modo oscuro/claro
-    dark_mode_button = ctk.CTkButton(sidebar_frame, text="Alternar Modo Oscuro/Claro", command=toggle_dark_mode, fg_color='#064F36', hover_color='#0D845B')
+    dark_mode_button = ctk.CTkButton(
+        sidebar_frame,
+        text="Alternar Modo Oscuro/Claro",
+        command=toggle_dark_mode,
+        fg_color="#064F36",
+        hover_color="#0D845B",
+    )
     dark_mode_button.grid(row=6, column=0, padx=20, pady=10, sticky="ew")
 
     # Etiqueta para mostrar la animación de escritura
@@ -602,7 +908,9 @@ def main():
 
     root.mainloop()
 
+
 def run_app():
+    global api_key
     # Configuración inicial
     api_key = load_api_key()
     if not api_key:
@@ -611,6 +919,6 @@ def run_app():
         configure_generative_ai(api_key)
         main()
 
+
 if __name__ == "__main__":
     run_app()
-
