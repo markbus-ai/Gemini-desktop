@@ -1,0 +1,9 @@
+Tú: hola como estas
+GenAI: Estoy a tu disposición para ayudarte con tus tareas de programación y análisis de datos. ¿En qué puedo ayudarte hoy? 
+
+Tú: hola como estas
+GenAI: Estoy a tu disposición para ayudarte con tus tareas de programación y análisis de datos. ¿En qué puedo ayudarte? 
+
+Tú: genera un grafico para mi empres siendo que en el primer mes obtuve 500 dolares de beneficio, en el mes de febrero obtuve 700 y en el mes de abril 200
+GenAI: GRAPH_DATA: 1,500 2,700 4,200 
+

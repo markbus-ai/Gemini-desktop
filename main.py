@@ -132,6 +132,7 @@ def pdf_to_text():
 
 
 def load_api_key():
+    """Carga la clave de API desde un archivo."""
     if os.path.exists("api.txt"):
         with open("api.txt", "r") as file:
             return file.read().strip()
@@ -139,20 +140,19 @@ def load_api_key():
 
 
 def save_api_key(api_key):
+    """Guarda la clave de API en un archivo."""
     with open("api.txt", "w") as file:
         file.write(api_key)
 
 
 def configure_generative_ai(api_key):
+    """Configura el modelo de IA generativa con la clave de API proporcionada."""
     global model
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-1.5-flash")
-
     except GoogleAPIError as e:
-        messagebox.showerror(
-            "Error de API", f"No se pudo configurar la API de Google Generative AI: {e}"
-        )
+        messagebox.showerror("Error de API", f"No se pudo configurar la API: {e}")
     except Exception as e:
         messagebox.showerror("Error", f"Error inesperado: {str(e)}")
 
@@ -760,6 +760,7 @@ def main():
         command=new_chat,
         fg_color="#064F36",
         hover_color="#0D845B",
+        width=150,
     )
     new_chat_button.grid(row=0, column=0, padx=5, pady=5)
 
@@ -769,6 +770,7 @@ def main():
         command=load_history_file,
         fg_color="#064F36",
         hover_color="#0D845B",
+        width=150,
     )
     load_history_button.grid(row=1, column=0, padx=5, pady=5)
 
@@ -779,6 +781,7 @@ def main():
         command=prompt_for_custom_prompt,
         fg_color="#064F36",
         hover_color="#0D845B",
+        width=150,
     )
     custom_prompt_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
 
@@ -863,6 +866,8 @@ def main():
         placeholder_text="Escribe tu mensaje aquí...",
         height=40,
         font=("Roboto", 14),
+        fg_color="#f0f0f0",
+        text_color="#000000",
     )
     input_field.grid(row=0, column=0, sticky="ew", padx=(0, 5))
     input_field.bind("<Return>", lambda event: send_message())
@@ -875,6 +880,7 @@ def main():
         hover_color="#0D845B",
         height=40,
         font=("Roboto", 14),
+        width=100,
     )
     send_button.grid(row=0, column=1, padx=(0, 5))
 
@@ -886,6 +892,7 @@ def main():
         hover_color="#0D845B",
         height=40,
         font=("Roboto", 14),
+        width=100,
     )
     file_button.grid(row=0, column=2)
 
@@ -896,6 +903,7 @@ def main():
         command=toggle_dark_mode,
         fg_color="#064F36",
         hover_color="#0D845B",
+        width=150,
     )
     dark_mode_button.grid(row=6, column=0, padx=20, pady=10, sticky="ew")
 
